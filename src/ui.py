@@ -151,7 +151,14 @@ class Slider:
         if self.label:
             label_text = f"{self.label}: {self.value:.2f}"
             text_surface = self.font.render(label_text, True, (0, 0, 0))
-            surface.blit(text_surface, (self.rect.x, self.rect.y - 20))
+            text_rect = text_surface.get_rect()
+            # Draw label centered above the slider to avoid vertical overlap
+            label_x = self.rect.x + (self.rect.width - text_rect.width) // 2
+            label_y = self.rect.y - text_rect.height - 6
+            # If there's no room above (rare inside small panels), clamp
+            if label_y < 0:
+                label_y = self.rect.y - text_rect.height
+            surface.blit(text_surface, (label_x, label_y))
 
 
 class TextLabel:
@@ -201,7 +208,9 @@ class ControlPanel:
         self.transform = Transform2D()
         
         # Sliders untuk transformasi
-        y_offset = 40
+        # Increase top offset so sliders and their labels sit below the
+        # "Transform Controls" title with better spacing.
+        y_offset = 60
         slider_width = width - 40
         
         self.translate_x_slider = Slider(
