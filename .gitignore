@@ -1,1 +1,19 @@
-./src/_pycache_
+# Byte-compiled / cache files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# pytest cache
+.pytest_cache/
+
+# Environment files
+.env
+.venv
