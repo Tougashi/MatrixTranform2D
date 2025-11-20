@@ -249,27 +249,44 @@ class ControlPanel:
         
         # Buttons
         button_y = y + y_offset + 260
-        button_width = (slider_width - 10) // 2
-        
+        # Arrange buttons vertically in this order:
+        # 1) Reset Button
+        # 2) Reset Camera
+        # 3) Center
+        button_width = slider_width
+
         self.reset_button = Button(
-            x + 20, button_y, button_width, 30, "Reset",
+            x + 20, button_y, button_width, 30, "Reset Button",
             callback=lambda: self.reset_transform()
         )
-        
+
+        self.reset_camera_button = Button(
+            x + 20, button_y + 40, button_width, 30, "Reset Camera",
+            callback=lambda: self.reset_camera()
+        )
+
         self.reset_center_button = Button(
-            x + 30 + button_width, button_y, button_width, 30, "Center",
+            x + 20, button_y + 80, button_width, 30, "Center",
             callback=lambda: self.reset_to_center()
+        )
+        # Camera controls: add Reset Camera button (resets zoom and notifies app)
+        self.reset_camera_button = Button(
+            x + 20, button_y + 40, slider_width, 30, "Reset Camera",
+            callback=lambda: self.reset_camera()
         )
         
         # Labels
         self.title_label = TextLabel(x + 20, y + 10, "Transform Controls", 
-                                     font_size=24, color=(0, 0, 0))
-        self.matrix_label = TextLabel(x + 20, button_y + 40, "", 
-                                      font_size=16, color=(100, 100, 100))
+                         font_size=24, color=(0, 0, 0))
+        # Place matrix label below the stacked buttons (buttons take ~110px)
+        self.matrix_label = TextLabel(x + 20, button_y + 120, "", 
+                          font_size=16, color=(100, 100, 100))
         
         # Callback untuk perubahan transformasi
         self.on_transform_changed: Optional[Callable] = None
         self.on_zoom_changed: Optional[Callable] = None
+        # Callback untuk mereset kamera pada level aplikasi
+        self.on_camera_reset: Optional[Callable] = None
     
     def _on_transform_change(self):
         """Update transform parameters dari sliders"""
@@ -317,6 +334,14 @@ class ControlPanel:
         """Reset ke center (translasi saja yang di-reset)"""
         self.translate_x_slider.set_value(0)
         self.translate_y_slider.set_value(0)
+
+    def reset_camera(self):
+        """Reset camera-related controls (zoom) and notify app"""
+        # Reset the zoom slider to default
+        self.set_zoom(1.0)
+        # Notify application if present
+        if self.on_camera_reset:
+            self.on_camera_reset()
     
     def get_transform_matrix(self):
         """Get transformation matrix saat ini"""
@@ -332,6 +357,7 @@ class ControlPanel:
         self.scale_y_slider.handle_event(event)
         self.reset_button.handle_event(event)
         self.reset_center_button.handle_event(event)
+        self.reset_camera_button.handle_event(event)
     
     def draw(self, surface: pygame.Surface):
         """Draw panel dan semua controls"""
@@ -355,6 +381,7 @@ class ControlPanel:
         # Draw buttons
         self.reset_button.draw(surface)
         self.reset_center_button.draw(surface)
+        self.reset_camera_button.draw(surface)
         
         # Draw matrix label
         self.matrix_label.draw(surface)

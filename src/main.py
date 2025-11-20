@@ -64,6 +64,8 @@ class MatrixTransform2DApp:
         self.control_panel = ControlPanel(panel_x, panel_y, panel_width, panel_height)
         self.control_panel.on_transform_changed = self._on_transform_changed
         self.control_panel.on_zoom_changed = self._on_zoom_changed
+        # Connect control panel camera reset to application
+        self.control_panel.on_camera_reset = self.reset_camera
         
         # Shapes (objek 2D yang bisa di-transform)
         self.shapes: List[Shape2D] = []
@@ -270,6 +272,15 @@ class MatrixTransform2DApp:
         """Reset zoom ke default (1.0)"""
         self.camera_zoom = 1.0
         # Update zoom slider
+        if self.control_panel:
+            self.control_panel.set_zoom(self.camera_zoom)
+
+    def reset_camera(self):
+        """Reset kamera: posisi offset dan zoom kembali ke default"""
+        self.camera_x = 0
+        self.camera_y = 0
+        self.camera_zoom = 1.0
+        # Update control panel zoom slider
         if self.control_panel:
             self.control_panel.set_zoom(self.camera_zoom)
     
