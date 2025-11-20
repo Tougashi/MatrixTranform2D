@@ -1,0 +1,16 @@
+# Package yang diperlukan untuk aplikasi MatrixTransform2D
+# 2D Graphics Framework
+pygame>=2.5.0
+
+# Matrix Operations & Numerical Computing
+numpy>=1.24.0
+
+# Mathematical Functions
+scipy>=1.10.0
+
+# Image Processing (opsional, untuk manipulasi gambar)
+Pillow>=10.0.0
+
+# Testing (opsional, untuk unit testing)
+pytest>=7.4.0
+

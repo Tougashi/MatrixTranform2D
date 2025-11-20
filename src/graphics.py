@@ -1,0 +1,1 @@
+# Class untuk rendering objek 2D
