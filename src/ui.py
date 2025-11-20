@@ -213,6 +213,15 @@ class ControlPanel:
         y_offset = 60
         slider_width = width - 40
         
+        # Camera zoom control (added at the top)
+        self.zoom_slider = Slider(
+            x + 20, y + y_offset, slider_width, 0.1, 5.0, 1.0, "Camera Zoom",
+            callback=lambda v: self._on_zoom_change()
+        )
+        
+        # Offset for transform sliders (below zoom)
+        y_offset += 60
+        
         self.translate_x_slider = Slider(
             x + 20, y + y_offset, slider_width, -200, 200, 0, "Translate X",
             callback=lambda v: self._on_transform_change()
@@ -260,6 +269,7 @@ class ControlPanel:
         
         # Callback untuk perubahan transformasi
         self.on_transform_changed: Optional[Callable] = None
+        self.on_zoom_changed: Optional[Callable] = None
     
     def _on_transform_change(self):
         """Update transform parameters dari sliders"""
@@ -284,6 +294,16 @@ class ControlPanel:
         if self.on_transform_changed:
             self.on_transform_changed(self.transform.get_matrix())
     
+    def _on_zoom_change(self):
+        """Update zoom dari slider"""
+        zoom_value = self.zoom_slider.value
+        if self.on_zoom_changed:
+            self.on_zoom_changed(zoom_value)
+    
+    def set_zoom(self, zoom_value: float):
+        """Set zoom slider value"""
+        self.zoom_slider.set_value(zoom_value)
+    
     def reset_transform(self):
         """Reset semua transformasi ke default"""
         self.transform.reset()
@@ -304,6 +324,7 @@ class ControlPanel:
     
     def handle_event(self, event: pygame.event.Event):
         """Handle pygame event untuk semua controls"""
+        self.zoom_slider.handle_event(event)
         self.translate_x_slider.handle_event(event)
         self.translate_y_slider.handle_event(event)
         self.rotate_slider.handle_event(event)
@@ -321,7 +342,10 @@ class ControlPanel:
         # Draw title
         self.title_label.draw(surface)
         
-        # Draw sliders
+        # Draw zoom slider (camera control)
+        self.zoom_slider.draw(surface)
+        
+        # Draw transform sliders
         self.translate_x_slider.draw(surface)
         self.translate_y_slider.draw(surface)
         self.rotate_slider.draw(surface)

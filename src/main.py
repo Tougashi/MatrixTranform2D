@@ -63,6 +63,7 @@ class MatrixTransform2DApp:
         panel_height = height
         self.control_panel = ControlPanel(panel_x, panel_y, panel_width, panel_height)
         self.control_panel.on_transform_changed = self._on_transform_changed
+        self.control_panel.on_zoom_changed = self._on_zoom_changed
         
         # Shapes (objek 2D yang bisa di-transform)
         self.shapes: List[Shape2D] = []
@@ -74,6 +75,12 @@ class MatrixTransform2DApp:
         # Camera offset (untuk scrolling)
         self.camera_x = 0
         self.camera_y = 0
+        
+        # Camera zoom (1.0 = normal, >1.0 = zoom in, <1.0 = zoom out)
+        self.camera_zoom = 1.0
+        self.min_zoom = 0.1
+        self.max_zoom = 5.0
+        self.zoom_step = 0.1
         
         # Initialize default shapes
         self._create_default_shapes()
@@ -129,6 +136,13 @@ class MatrixTransform2DApp:
         if self.selected_shape:
             self.selected_shape.apply_transform(matrix)
     
+    def _on_zoom_changed(self, zoom_value: float):
+        """Callback saat zoom berubah dari control panel"""
+        self.camera_zoom = zoom_value
+        # Update zoom slider value display
+        if self.control_panel:
+            self.control_panel.zoom_slider.set_value(zoom_value)
+    
     def handle_events(self):
         """Handle pygame events"""
         for event in pygame.event.get():
@@ -143,6 +157,10 @@ class MatrixTransform2DApp:
             # Mouse events
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self._handle_mouse_down(event)
+            
+            # Mouse wheel for zoom
+            elif event.type == pygame.MOUSEWHEEL:
+                self._handle_mouse_wheel(event)
             
             # Handle control panel events
             self.control_panel.handle_event(event)
@@ -177,6 +195,18 @@ class MatrixTransform2DApp:
             self.camera_y += 20
         elif event.key == pygame.K_DOWN:
             self.camera_y -= 20
+        
+        # Zoom controls
+        elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+            self.zoom_in()
+        elif event.key == pygame.K_MINUS or event.key == pygame.K_UNDERSCORE:
+            self.zoom_out()
+        elif event.key == pygame.K_0:  # Reset zoom
+            self.reset_zoom()
+        elif event.key == pygame.K_PAGEUP:
+            self.zoom_in()
+        elif event.key == pygame.K_PAGEDOWN:
+            self.zoom_out()
     
     def _handle_mouse_down(self, event: pygame.event.Event):
         """Handle mouse button down"""
@@ -197,6 +227,51 @@ class MatrixTransform2DApp:
                     # Reset transformasi untuk shape yang dipilih
                     clicked_shape.reset_transform()
                     self.control_panel.reset_transform()
+    
+    def _handle_mouse_wheel(self, event: pygame.event.Event):
+        """Handle mouse wheel for zoom"""
+        # Check if mouse is over canvas area (not control panel)
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        if 0 <= mouse_x < self.canvas_width:
+            if event.y > 0:  # Scroll up - zoom in
+                self.zoom_in()
+            elif event.y < 0:  # Scroll down - zoom out
+                self.zoom_out()
+    
+    def zoom_in(self, factor: float = None):
+        """Zoom in camera"""
+        if factor is None:
+            factor = 1.0 + self.zoom_step
+        
+        new_zoom = self.camera_zoom * factor
+        if new_zoom <= self.max_zoom:
+            self.camera_zoom = new_zoom
+            # Update zoom slider
+            if self.control_panel:
+                self.control_panel.set_zoom(self.camera_zoom)
+            return True
+        return False
+    
+    def zoom_out(self, factor: float = None):
+        """Zoom out camera"""
+        if factor is None:
+            factor = 1.0 / (1.0 + self.zoom_step)
+        
+        new_zoom = self.camera_zoom * factor
+        if new_zoom >= self.min_zoom:
+            self.camera_zoom = new_zoom
+            # Update zoom slider
+            if self.control_panel:
+                self.control_panel.set_zoom(self.camera_zoom)
+            return True
+        return False
+    
+    def reset_zoom(self):
+        """Reset zoom ke default (1.0)"""
+        self.camera_zoom = 1.0
+        # Update zoom slider
+        if self.control_panel:
+            self.control_panel.set_zoom(self.camera_zoom)
     
     def _point_in_shape(self, point: tuple, points: List[tuple]) -> bool:
         """Check if point is inside shape (simple bounding box check)"""
@@ -228,17 +303,28 @@ class MatrixTransform2DApp:
         canvas_surface = pygame.Surface((self.canvas_width, self.canvas_height))
         canvas_surface.fill(self.bg_color)
         
-        # Draw grid
-        self.grid.draw(canvas_surface, self.camera_x, self.camera_y)
-        
-        # Draw axes
-        self.axis.draw(canvas_surface)
-        
-        # Apply camera offset untuk shapes
+        # Apply camera transform (zoom + translate)
+        # Transform ke center canvas dulu, lalu zoom, lalu translate kembali
         camera_matrix = TransformationMatrix()
-        camera_matrix.translate(self.camera_x, self.camera_y)
         
-        # Draw all shapes
+        # Translate ke center canvas untuk zoom dari center
+        center_x = self.canvas_width / 2
+        center_y = self.canvas_height / 2
+        camera_matrix.translate(center_x, center_y)
+        
+        # Apply zoom
+        camera_matrix.scale(self.camera_zoom, self.camera_zoom)
+        
+        # Translate kembali + camera offset
+        camera_matrix.translate(-center_x + self.camera_x, -center_y + self.camera_y)
+        
+        # Draw grid dengan zoom consideration
+        self._draw_grid_with_zoom(canvas_surface)
+        
+        # Draw axes dengan zoom consideration
+        self._draw_axes_with_zoom(canvas_surface)
+        
+        # Draw all shapes dengan camera transform
         for i, shape in enumerate(self.shapes):
             # Combine camera and shape transformations
             combined_matrix = TransformationMatrix()
@@ -253,14 +339,15 @@ class MatrixTransform2DApp:
             is_selected = (shape == self.selected_shape)
             shape.draw(canvas_surface, draw_center=is_selected)
             
-            # Draw selection highlight
+            # Draw selection highlight dengan zoom consideration
             if is_selected:
                 points = shape.get_points(transformed=True)
                 if len(points) >= 2:
+                    thickness = max(1, int(3 / self.camera_zoom))  # Thickness scales with zoom
                     for j in range(len(points)):
                         start = points[j]
                         end = points[(j + 1) % len(points)]
-                        pygame.draw.line(canvas_surface, (255, 0, 0), start, end, 3)
+                        pygame.draw.line(canvas_surface, (255, 0, 0), start, end, thickness)
             
             # Restore original transform
             shape.transform_matrix = original_matrix
@@ -280,6 +367,136 @@ class MatrixTransform2DApp:
         # Update display
         pygame.display.flip()
     
+    def _draw_grid_with_zoom(self, surface):
+        """Draw grid dengan zoom consideration"""
+        # Grid spacing dalam world coordinates
+        base_spacing = 50
+        grid_color = self.grid_color
+        
+        # Buat camera matrix untuk transformasi
+        camera_matrix = TransformationMatrix()
+        center_x = self.canvas_width / 2
+        center_y = self.canvas_height / 2
+        camera_matrix.translate(center_x, center_y)
+        camera_matrix.scale(self.camera_zoom, self.camera_zoom)
+        camera_matrix.translate(-center_x + self.camera_x, -center_y + self.camera_y)
+        
+        # Hitung visible range dalam world coordinates
+        # Inverse transform untuk mendapatkan world coordinates dari screen corners
+        screen_corners = [
+            (0, 0),
+            (self.canvas_width, 0),
+            (self.canvas_width, self.canvas_height),
+            (0, self.canvas_height)
+        ]
+        
+        # Inverse camera transform
+        inv_camera = TransformationMatrix()
+        inv_camera.translate(center_x - self.camera_x, center_y - self.camera_y)
+        inv_camera.scale(1.0 / self.camera_zoom, 1.0 / self.camera_zoom)
+        inv_camera.translate(-center_x, -center_y)
+        
+        world_corners = [inv_camera.apply_to_point(x, y) for x, y in screen_corners]
+        world_xs = [p[0] for p in world_corners]
+        world_ys = [p[1] for p in world_corners]
+        
+        min_world_x = min(world_xs)
+        max_world_x = max(world_xs)
+        min_world_y = min(world_ys)
+        max_world_y = max(world_ys)
+        
+        # Draw vertical lines
+        start_x = int(min_world_x - base_spacing)
+        end_x = int(max_world_x + base_spacing)
+        for x in range(start_x, end_x, base_spacing):
+            point1 = camera_matrix.apply_to_point(x, min_world_y - base_spacing)
+            point2 = camera_matrix.apply_to_point(x, max_world_y + base_spacing)
+            # Clip ke screen bounds
+            if (0 <= point1[0] <= self.canvas_width or 0 <= point2[0] <= self.canvas_width or
+                (point1[0] < 0 and point2[0] > self.canvas_width) or
+                (point1[0] > self.canvas_width and point2[0] < 0)):
+                pygame.draw.line(surface, grid_color, 
+                               (int(point1[0]), int(point1[1])), 
+                               (int(point2[0]), int(point2[1])), 1)
+        
+        # Draw horizontal lines
+        start_y = int(min_world_y - base_spacing)
+        end_y = int(max_world_y + base_spacing)
+        for y in range(start_y, end_y, base_spacing):
+            point1 = camera_matrix.apply_to_point(min_world_x - base_spacing, y)
+            point2 = camera_matrix.apply_to_point(max_world_x + base_spacing, y)
+            # Clip ke screen bounds
+            if (0 <= point1[1] <= self.canvas_height or 0 <= point2[1] <= self.canvas_height or
+                (point1[1] < 0 and point2[1] > self.canvas_height) or
+                (point1[1] > self.canvas_height and point2[1] < 0)):
+                pygame.draw.line(surface, grid_color, 
+                               (int(point1[0]), int(point1[1])), 
+                               (int(point2[0]), int(point2[1])), 1)
+    
+    def _draw_axes_with_zoom(self, surface):
+        """Draw axes dengan zoom consideration"""
+        # Create temporary axis dengan zoom transform
+        camera_matrix = TransformationMatrix()
+        center_x = self.canvas_width / 2
+        center_y = self.canvas_height / 2
+        camera_matrix.translate(center_x, center_y)
+        camera_matrix.scale(self.camera_zoom, self.camera_zoom)
+        camera_matrix.translate(-center_x + self.camera_x, -center_y + self.camera_y)
+        
+        # Transform origin
+        origin_world_x = self.origin_x
+        origin_world_y = self.origin_y
+        origin_screen = camera_matrix.apply_to_point(origin_world_x, origin_world_y)
+        origin_screen_x = int(origin_screen[0])
+        origin_screen_y = int(origin_screen[1])
+        
+        # Draw axes jika masih dalam viewport
+        axis_color = (100, 100, 100)
+        
+        # X-axis
+        if 0 <= origin_screen_y <= self.canvas_height:
+            # Transform points untuk axis
+            point_start = camera_matrix.apply_to_point(-1000, origin_world_y)
+            point_end = camera_matrix.apply_to_point(1000, origin_world_y)
+            pygame.draw.line(surface, axis_color, 
+                           (int(point_start[0]), int(point_start[1])), 
+                           (int(point_end[0]), int(point_end[1])), 
+                           max(1, int(2 / self.camera_zoom)))
+            
+            # Arrow head
+            arrow_size = max(5, int(10 / self.camera_zoom))
+            pygame.draw.polygon(surface, axis_color, [
+                (int(point_end[0]), int(point_end[1])),
+                (int(point_end[0]) - arrow_size, int(point_end[1]) - arrow_size // 2),
+                (int(point_end[0]) - arrow_size, int(point_end[1]) + arrow_size // 2)
+            ])
+        
+        # Y-axis
+        if 0 <= origin_screen_x <= self.canvas_width:
+            # Transform points untuk axis
+            point_start = camera_matrix.apply_to_point(origin_world_x, -1000)
+            point_end = camera_matrix.apply_to_point(origin_world_x, 1000)
+            pygame.draw.line(surface, axis_color, 
+                           (int(point_start[0]), int(point_start[1])), 
+                           (int(point_end[0]), int(point_end[1])), 
+                           max(1, int(2 / self.camera_zoom)))
+            
+            # Arrow head
+            arrow_size = max(5, int(10 / self.camera_zoom))
+            pygame.draw.polygon(surface, axis_color, [
+                (int(point_start[0]), int(point_start[1])),
+                (int(point_start[0]) - arrow_size // 2, int(point_start[1]) + arrow_size),
+                (int(point_start[0]) + arrow_size // 2, int(point_start[1]) + arrow_size)
+            ])
+        
+        # Label origin
+        if 0 <= origin_screen_x <= self.canvas_width and 0 <= origin_screen_y <= self.canvas_height:
+            font_size = max(12, int(24 / self.camera_zoom))
+            font = pygame.font.Font(None, font_size)
+            text = font.render("O", True, axis_color)
+            surface.blit(text, (origin_screen_x + max(2, int(5 / self.camera_zoom)), 
+                              origin_screen_y + max(2, int(5 / self.camera_zoom))))
+    
     def _draw_info(self):
         """Draw info text di canvas"""
         font = pygame.font.Font(None, 24)
@@ -287,10 +504,13 @@ class MatrixTransform2DApp:
         info_lines = [
             "MatrixTransform2D - Transformasi Matriks 2D",
             f"Selected: Shape {self.selected_shape_index + 1}/{len(self.shapes)}",
+            f"Zoom: {self.camera_zoom:.2f}x",
             "Controls:",
             "  TAB - Switch shape",
             "  R - Reset transform",
             "  Arrow Keys - Move camera",
+            "  +/- or Mouse Wheel - Zoom in/out",
+            "  0 - Reset zoom",
             "  Click shape to select"
         ]
         
@@ -311,6 +531,9 @@ class MatrixTransform2DApp:
         print("  TAB - Switch between shapes")
         print("  R - Reset transformation")
         print("  Arrow Keys - Move camera")
+        print("  +/- or Mouse Wheel - Zoom in/out")
+        print("  0 - Reset zoom")
+        print("  PageUp/PageDown - Zoom in/out")
         print("  Left Click - Select shape")
         print("  ESC - Quit")
         print()

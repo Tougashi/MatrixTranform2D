@@ -38,6 +38,9 @@ main()
   - ➡️ RIGHT - Geser ke kanan
   - ⬆️ UP - Geser ke atas
   - ⬇️ DOWN - Geser ke bawah
+- **+ / =** atau **PageUp** - Zoom in (perbesar)
+- **- / _** atau **PageDown** - Zoom out (perkecil)
+- **0** - Reset zoom ke default (1.0x)
 - **ESC** - Keluar dari aplikasi
 
 ### Kontrol Mouse
@@ -45,16 +48,21 @@ main()
 - **Left Click** pada objek - Pilih objek
 - **Left Click** pada slider - Atur nilai transformasi
 - **Drag** pada slider - Mengubah nilai transformasi secara real-time
+- **Mouse Wheel** - Zoom in/out
+  - Scroll Up - Zoom in
+  - Scroll Down - Zoom out
 
 ### Panel Kontrol (Kanan)
 
 Aplikasi memiliki panel kontrol di sebelah kanan dengan slider untuk:
 
-1. **Translate X** - Geser objek horizontal (-200 sampai 200)
-2. **Translate Y** - Geser objek vertikal (-200 sampai 200)
-3. **Rotate (deg)** - Putar objek (-180° sampai 180°)
-4. **Scale X** - Skala horizontal (0.1 sampai 3.0)
-5. **Scale Y** - Skala vertikal (0.1 sampai 3.0)
+1. **Camera Zoom** - Zoom camera (0.1x sampai 5.0x)
+   - Nilai 1.0 = normal, >1.0 = zoom in, <1.0 = zoom out
+2. **Translate X** - Geser objek horizontal (-200 sampai 200)
+3. **Translate Y** - Geser objek vertikal (-200 sampai 200)
+4. **Rotate (deg)** - Putar objek (-180° sampai 180°)
+5. **Scale X** - Skala horizontal (0.1 sampai 3.0)
+6. **Scale Y** - Skala vertikal (0.1 sampai 3.0)
 
 **Tombol:**
 - **Reset** - Reset semua transformasi ke default
