@@ -256,7 +256,7 @@ class ControlPanel:
         button_width = slider_width
 
         self.reset_button = Button(
-            x + 20, button_y, button_width, 30, "Reset Button",
+            x + 20, button_y, button_width, 30, "Reset Objek",
             callback=lambda: self.reset_transform()
         )
 
