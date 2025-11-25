@@ -92,6 +92,26 @@ class MatrixTransform2DApp:
     
     def _create_default_shapes(self):
         """Create default shapes untuk demo"""
+        # Polygon (pentagon)
+        import math
+        pentagon_points = []
+        for i in range(5):
+            angle = 2 * math.pi * i / 5 - math.pi / 2
+            x = self.origin_x + 50 * math.cos(angle)
+            y = self.origin_y - 162.5 + 50 * math.sin(angle)
+            pentagon_points.append((x, y))
+        
+        pentagon = Polygon(pentagon_points, color=(255, 100, 150), fill=True)
+        self.shapes.append(pentagon)
+        
+        # Circle
+        circle = Circle(
+            self.origin_x, self.origin_y - 62.5,
+            40,
+            color=(150, 255, 150), fill=True
+        )
+        self.shapes.append(circle)
+        
         # Rectangle di center
         rect = Rectangle(
             self.origin_x - 50, self.origin_y + 31.25,
@@ -108,26 +128,6 @@ class MatrixTransform2DApp:
             color=(255, 150, 0), fill=True
         )
         self.shapes.append(triangle)
-        
-        # Circle
-        circle = Circle(
-            self.origin_x, self.origin_y - 62.5,
-            40,
-            color=(150, 255, 150), fill=True
-        )
-        self.shapes.append(circle)
-        
-        # Polygon (pentagon)
-        import math
-        pentagon_points = []
-        for i in range(5):
-            angle = 2 * math.pi * i / 5 - math.pi / 2
-            x = self.origin_x + 50 * math.cos(angle)
-            y = self.origin_y - 162.5 + 50 * math.sin(angle)
-            pentagon_points.append((x, y))
-        
-        pentagon = Polygon(pentagon_points, color=(255, 100, 150), fill=True)
-        self.shapes.append(pentagon)
         
         # Select first shape by default
         if self.shapes:
