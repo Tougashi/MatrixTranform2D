@@ -409,15 +409,18 @@ class MatrixTransform2DApp:
             original_matrix = shape.transform_matrix
             shape.apply_transform(combined_matrix)
             
-            # Draw shape
+            # Draw shape with zoom factor for center dot scaling
             is_selected = (shape == self.selected_shape)
-            shape.draw(canvas_surface, draw_center=is_selected)
+            zoom_factor = self.camera_zoom ** 0.5  # Gentler scaling curve
+            shape.draw(canvas_surface, draw_center=is_selected, zoom_factor=zoom_factor)
             
             # Draw selection highlight dengan zoom consideration
             if is_selected:
                 points = shape.get_points(transformed=True)
                 if len(points) >= 2:
-                    thickness = max(1, int(3 / self.camera_zoom))  # Thickness scales with zoom
+                    # Use sqrt of zoom for gentler scaling
+                    highlight_zoom_factor = self.camera_zoom ** 0.5
+                    thickness = int(max(1, min(5, 2 * highlight_zoom_factor)))  # Clamped thickness
                     for j in range(len(points)):
                         start = points[j]
                         end = points[(j + 1) % len(points)]
@@ -527,6 +530,12 @@ class MatrixTransform2DApp:
         # Draw axes jika masih dalam viewport
         axis_color = (100, 100, 100)
         
+        # Clamp arrow size and line thickness to reasonable ranges
+        # Use sqrt of zoom to create a gentler scaling curve
+        zoom_factor = self.camera_zoom ** 0.5  # Square root for gentler scaling
+        arrow_size = int(max(6, min(16, 10 * zoom_factor)))
+        line_thickness = int(max(1, min(4, 2 * zoom_factor)))
+        
         # X-axis
         if 0 <= origin_screen_y <= self.canvas_height:
             # Transform points untuk axis
@@ -535,10 +544,9 @@ class MatrixTransform2DApp:
             pygame.draw.line(surface, axis_color, 
                            (int(point_start[0]), int(point_start[1])), 
                            (int(point_end[0]), int(point_end[1])), 
-                           max(1, int(2 / self.camera_zoom)))
+                           line_thickness)
             
             # Arrow head
-            arrow_size = max(5, int(10 / self.camera_zoom))
             pygame.draw.polygon(surface, axis_color, [
                 (int(point_end[0]), int(point_end[1])),
                 (int(point_end[0]) - arrow_size, int(point_end[1]) - arrow_size // 2),
@@ -553,10 +561,9 @@ class MatrixTransform2DApp:
             pygame.draw.line(surface, axis_color, 
                            (int(point_start[0]), int(point_start[1])), 
                            (int(point_end[0]), int(point_end[1])), 
-                           max(1, int(2 / self.camera_zoom)))
+                           line_thickness)
             
             # Arrow head
-            arrow_size = max(5, int(10 / self.camera_zoom))
             pygame.draw.polygon(surface, axis_color, [
                 (int(point_start[0]), int(point_start[1])),
                 (int(point_start[0]) - arrow_size // 2, int(point_start[1]) + arrow_size),
@@ -565,11 +572,13 @@ class MatrixTransform2DApp:
         
         # Label origin
         if 0 <= origin_screen_x <= self.canvas_width and 0 <= origin_screen_y <= self.canvas_height:
-            font_size = max(12, int(24 / self.camera_zoom))
+            # Clamp font size to reasonable range using zoom factor
+            font_size = int(max(12, min(28, 24 * zoom_factor)))
             font = pygame.font.Font(None, font_size)
             text = font.render("O", True, axis_color)
-            surface.blit(text, (origin_screen_x + max(2, int(5 / self.camera_zoom)), 
-                              origin_screen_y + max(2, int(5 / self.camera_zoom))))
+            label_offset = max(3, int(5 * zoom_factor))
+            surface.blit(text, (origin_screen_x + label_offset, 
+                              origin_screen_y + label_offset))
     
     def _draw_info(self):
         """Draw info text di canvas"""

@@ -84,12 +84,13 @@ class Shape2D:
         points = self.transformed_points if transformed else self.original_points
         return [(int(p.x), int(p.y)) for p in points]
     
-    def draw(self, surface: pygame.Surface, draw_center=False):
+    def draw(self, surface: pygame.Surface, draw_center=False, zoom_factor=1.0):
         """
         Draw shape ke pygame surface
         Args:
             surface: Pygame surface untuk drawing
             draw_center: True untuk draw center point
+            zoom_factor: Camera zoom factor for scaling the center dot
         """
         points = self.get_points(transformed=True)
         
@@ -115,7 +116,9 @@ class Shape2D:
                     self.center[0], self.center[1]
                 )
                 center_x, center_y = int(center_x), int(center_y)
-            pygame.draw.circle(surface, (255, 0, 0), (center_x, center_y), 5)
+            # Scale center dot radius with gentler zoom curve
+            center_radius = int(max(3, min(8, 5 * zoom_factor)))
+            pygame.draw.circle(surface, (255, 0, 0), (center_x, center_y), center_radius)
 
 
 class Rectangle(Shape2D):
@@ -203,8 +206,13 @@ class Line(Shape2D):
         super().__init__(points, color, fill=False)
         self.thickness = thickness
     
-    def draw(self, surface: pygame.Surface, draw_center=False):
-        """Override draw untuk line khusus"""
+    def draw(self, surface: pygame.Surface, draw_center=False, zoom_factor=1.0):
+        """Override draw untuk line khusus
+        Args:
+            surface: Pygame surface untuk drawing
+            draw_center: True untuk draw center point
+            zoom_factor: Camera zoom factor for scaling the center dot
+        """
         points = self.get_points(transformed=True)
         if len(points) >= 2:
             pygame.draw.line(surface, self.color, points[0], points[1], self.thickness)
@@ -216,7 +224,9 @@ class Line(Shape2D):
                     self.center[0], self.center[1]
                 )
                 center_x, center_y = int(center_x), int(center_y)
-            pygame.draw.circle(surface, (255, 0, 0), (center_x, center_y), 5)
+            # Scale center dot radius with gentler zoom curve
+            center_radius = int(max(3, min(8, 5 * zoom_factor)))
+            pygame.draw.circle(surface, (255, 0, 0), (center_x, center_y), center_radius)
 
 
 class Polygon(Shape2D):
