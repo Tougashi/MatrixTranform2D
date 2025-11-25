@@ -273,8 +273,10 @@ class MatrixTransform2DApp:
         return False
     
     def reset_zoom(self):
-        """Reset zoom ke default (1.0)"""
+        """Reset zoom ke default (1.0) dan reset camera pan"""
         self.camera_zoom = 1.0
+        self.camera_x = 0
+        self.camera_y = 0
         # Update zoom slider
         if self.control_panel:
             self.control_panel.set_zoom(self.camera_zoom)

@@ -269,11 +269,6 @@ class ControlPanel:
             x + 20, button_y + 80, button_width, 30, "Center",
             callback=lambda: self.reset_to_center()
         )
-        # Camera controls: add Reset Camera button (resets zoom and notifies app)
-        self.reset_camera_button = Button(
-            x + 20, button_y + 40, slider_width, 30, "Reset Camera",
-            callback=lambda: self.reset_camera()
-        )
         
         # Labels
         self.title_label = TextLabel(x + 20, y + 10, "Transform Controls", 
