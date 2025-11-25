@@ -65,7 +65,7 @@ class MatrixTransform2DApp:
         self.control_panel.on_transform_changed = self._on_transform_changed
         self.control_panel.on_zoom_changed = self._on_zoom_changed
         # Connect control panel camera reset to application
-        self.control_panel.on_camera_reset = self.reset_camera
+        self.control_panel.on_camera_reset = self.reset_zoom
         
         # Shapes (objek 2D yang bisa di-transform)
         self.shapes: List[Shape2D] = []
@@ -217,11 +217,14 @@ class MatrixTransform2DApp:
         if event.button == 1:  # Left click
             # Check if clicked on canvas area (not control panel)
             if 0 <= event.pos[0] < self.canvas_width:
+                # Convert screen coordinates to world coordinates
+                world_x, world_y = self._screen_to_world(event.pos[0], event.pos[1])
+                
                 # Check if clicked on any shape
                 clicked_shape = None
                 for shape in reversed(self.shapes):  # Check from top to bottom
                     points = shape.get_points(transformed=True)
-                    if self._point_in_shape(event.pos, points):
+                    if self._point_in_shape((world_x, world_y), points):
                         clicked_shape = shape
                         break
                 
@@ -276,14 +279,32 @@ class MatrixTransform2DApp:
         if self.control_panel:
             self.control_panel.set_zoom(self.camera_zoom)
 
-    def reset_camera(self):
-        """Reset kamera: posisi offset dan zoom kembali ke default"""
-        self.camera_x = 0
-        self.camera_y = 0
-        self.camera_zoom = 1.0
-        # Update control panel zoom slider
-        if self.control_panel:
-            self.control_panel.set_zoom(self.camera_zoom)
+    def _get_camera_matrix(self):
+        """Get the camera transformation matrix"""
+        camera_matrix = TransformationMatrix()
+        center_x = self.canvas_width / 2
+        center_y = self.canvas_height / 2
+        camera_matrix.translate(center_x, center_y)
+        camera_matrix.scale(self.camera_zoom, self.camera_zoom)
+        camera_matrix.translate(-center_x + self.camera_x, -center_y + self.camera_y)
+        return camera_matrix
+    
+    def _screen_to_world(self, screen_x: float, screen_y: float) -> tuple:
+        """Convert screen coordinates to world coordinates
+        Args:
+            screen_x, screen_y: Coordinates in screen space
+        Returns:
+            Tuple (world_x, world_y) in world coordinates
+        """
+        camera_matrix = self._get_camera_matrix()
+        # Inverse camera transform to get world coordinates
+        inv_camera = TransformationMatrix()
+        center_x = self.canvas_width / 2
+        center_y = self.canvas_height / 2
+        inv_camera.translate(center_x - self.camera_x, center_y - self.camera_y)
+        inv_camera.scale(1.0 / self.camera_zoom, 1.0 / self.camera_zoom)
+        inv_camera.translate(-center_x, -center_y)
+        return inv_camera.apply_to_point(screen_x, screen_y)
     
     def _point_in_shape(self, point: tuple, points: List[tuple]) -> bool:
         """Check if point is inside shape (simple bounding box check)"""
