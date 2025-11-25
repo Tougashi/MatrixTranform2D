@@ -197,18 +197,76 @@ class Transform2D:
     
     def get_matrix(self):
         """Get TransformationMatrix dari parameter saat ini"""
-        matrix = TransformationMatrix()
+        # Urutan transformasi yang benar untuk scaling/rotation dari pivot:
+        # Untuk scaling dari pivot tanpa menggeser objek:
+        # 1. Translate(-pivot) - pindahkan pivot ke origin
+        # 2. Scale - scale di origin
+        # 3. Rotate - rotate di origin
+        # 4. Translate(pivot) - kembalikan pivot ke posisi semula
+        # 5. Translate(user) - translate sesuai input user
         
-        # Urutan: Translate -> Rotate -> Scale
-        # (atau bisa disesuaikan dengan kebutuhan)
+        # Urutan aplikasi ke titik (dari kanan ke kiri):
+        # T(-pivot) -> Scale -> Rotate -> T(pivot) -> T(user)
+        
+        # Matriks yang dibangun (dari kiri ke kanan):
+        # T_user @ T_pivot @ Rotate @ Scale @ T_minus_pivot
+        
+        # Langkah 1: Buat matriks translate ke -pivot
+        T_minus_pivot = np.array([
+            [1, 0, -self.pivot_x],
+            [0, 1, -self.pivot_y],
+            [0, 0, 1]
+        ], dtype=np.float64)
+        
+        # Langkah 2: Buat matriks scale
         if self.scale_x != 1.0 or self.scale_y != 1.0:
-            matrix.scale(self.scale_x, self.scale_y, self.pivot_x, self.pivot_y)
+            sy = self.scale_y if self.scale_y is not None else self.scale_x
+            S = np.array([
+                [self.scale_x, 0, 0],
+                [0, sy, 0],
+                [0, 0, 1]
+            ], dtype=np.float64)
+        else:
+            S = np.eye(3, dtype=np.float64)
         
+        # Langkah 3: Buat matriks rotate
         if self.rotation_angle != 0.0:
-            matrix.rotate(self.rotation_angle, self.pivot_x, self.pivot_y)
+            angle_rad = math.radians(self.rotation_angle)
+            cos_a = math.cos(angle_rad)
+            sin_a = math.sin(angle_rad)
+            R = np.array([
+                [cos_a, -sin_a, 0],
+                [sin_a, cos_a, 0],
+                [0, 0, 1]
+            ], dtype=np.float64)
+        else:
+            R = np.eye(3, dtype=np.float64)
         
+        # Langkah 4: Buat matriks translate kembali ke pivot
+        T_pivot = np.array([
+            [1, 0, self.pivot_x],
+            [0, 1, self.pivot_y],
+            [0, 0, 1]
+        ], dtype=np.float64)
+        
+        # Langkah 5: Buat matriks translate user
         if self.translation_x != 0.0 or self.translation_y != 0.0:
-            matrix.translate(self.translation_x, self.translation_y)
+            T_user = np.array([
+                [1, 0, self.translation_x],
+                [0, 1, self.translation_y],
+                [0, 0, 1]
+            ], dtype=np.float64)
+        else:
+            T_user = np.eye(3, dtype=np.float64)
+        
+        # Gabungkan matriks dengan urutan yang benar: T_user @ T_pivot @ R @ S @ T_minus_pivot
+        # Karena kita ingin urutan aplikasi: T_minus_pivot -> S -> R -> T_pivot -> T_user
+        # Maka matriks final = T_user @ T_pivot @ R @ S @ T_minus_pivot
+        result_matrix = np.dot(T_user, np.dot(T_pivot, np.dot(R, np.dot(S, T_minus_pivot))))
+        
+        # Buat TransformationMatrix dari hasil
+        matrix = TransformationMatrix()
+        matrix.set_matrix(result_matrix)
         
         return matrix
     

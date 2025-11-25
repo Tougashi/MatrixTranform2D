@@ -99,11 +99,11 @@ class Slider:
         new_value = self.min_val + normalized * (self.max_val - self.min_val)
         self.set_value(new_value)
     
-    def set_value(self, value: float):
-        """Set value dan trigger callback"""
+    def set_value(self, value: float, trigger_callback: bool = True):
+        """Set value dan trigger callback jika diminta"""
         old_value = self.value
         self.value = max(self.min_val, min(self.max_val, value))
-        if self.value != old_value and self.callback:
+        if self.value != old_value and self.callback and trigger_callback:
             self.callback(self.value)
     
     def handle_event(self, event: pygame.event.Event) -> bool:
@@ -296,10 +296,7 @@ class ControlPanel:
         self.transform.scale_x = self.scale_x_slider.value
         self.transform.scale_y = self.scale_y_slider.value
         
-        # Update matrix label
-        matrix = self.transform.get_matrix()
-        matrix_str = f"Matrix:\n{matrix.matrix[0]}\n{matrix.matrix[1]}\n{matrix.matrix[2]}"
-        # Simplified display
+        # Simplified display (tidak perlu membuat matrix, hanya tampilkan nilai)
         matrix_str = f"TX: {self.transform.translation_x:.1f}, " \
                     f"TY: {self.transform.translation_y:.1f}, " \
                     f"R: {self.transform.rotation_angle:.1f}°, " \
@@ -307,9 +304,8 @@ class ControlPanel:
                     f"SY: {self.transform.scale_y:.2f}"
         self.matrix_label.set_text(matrix_str)
         
-        # Trigger callback
-        if self.on_transform_changed:
-            self.on_transform_changed(self.transform.get_matrix())
+        # Notify aplikasi bahwa transformasi berubah (untuk save)
+        # Ini akan dipanggil setiap kali slider berubah
     
     def _on_zoom_change(self):
         """Update zoom dari slider"""
@@ -343,8 +339,11 @@ class ControlPanel:
         if self.on_camera_reset:
             self.on_camera_reset()
     
-    def get_transform_matrix(self):
-        """Get transformation matrix saat ini"""
+    def get_transform_matrix(self, pivot_x=0, pivot_y=0):
+        """Get transformation matrix saat ini dengan pivot point"""
+        # Set pivot point untuk scale dan rotate
+        self.transform.pivot_x = pivot_x
+        self.transform.pivot_y = pivot_y
         return self.transform.get_matrix()
     
     def handle_event(self, event: pygame.event.Event):

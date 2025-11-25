@@ -177,15 +177,17 @@ class MatrixTransform2DApp:
             if self.shapes:
                 self.selected_shape_index = (self.selected_shape_index + 1) % len(self.shapes)
                 self.selected_shape = self.shapes[self.selected_shape_index]
-                # Update control panel dengan transformasi shape saat ini
+                # Sync control panel dengan transformasi shape saat ini
                 if self.selected_shape:
-                    self.selected_shape.reset_transform()
-                    self.control_panel.reset_transform()
+                    self._sync_control_panel_to_shape()
         
         # Reset transformasi
         elif event.key == pygame.K_r:
             if self.selected_shape:
                 self.selected_shape.reset_transform()
+                # Hapus transformasi yang disimpan
+                if hasattr(self.selected_shape, 'saved_transform'):
+                    delattr(self.selected_shape, 'saved_transform')
                 self.control_panel.reset_transform()
         
         # Camera movement
@@ -226,9 +228,8 @@ class MatrixTransform2DApp:
                 if clicked_shape:
                     self.selected_shape = clicked_shape
                     self.selected_shape_index = self.shapes.index(clicked_shape)
-                    # Reset transformasi untuk shape yang dipilih
-                    clicked_shape.reset_transform()
-                    self.control_panel.reset_transform()
+                    # Sync control panel dengan transformasi shape yang diklik
+                    self._sync_control_panel_to_shape()
     
     def _handle_mouse_wheel(self, event: pygame.event.Event):
         """Handle mouse wheel for zoom"""
@@ -298,11 +299,73 @@ class MatrixTransform2DApp:
         
         return min_x <= x <= max_x and min_y <= y <= max_y
     
+    def _sync_control_panel_to_shape(self):
+        """Sync control panel dengan transformasi shape yang dipilih"""
+        if not self.selected_shape:
+            return
+        
+        # Cek jika shape punya transformasi yang disimpan
+        if hasattr(self.selected_shape, 'saved_transform'):
+            # Restore nilai transformasi dari shape
+            saved = self.selected_shape.saved_transform
+            self.control_panel.transform.translation_x = saved.get('tx', 0)
+            self.control_panel.transform.translation_y = saved.get('ty', 0)
+            self.control_panel.transform.rotation_angle = saved.get('rot', 0)
+            self.control_panel.transform.scale_x = saved.get('sx', 1.0)
+            self.control_panel.transform.scale_y = saved.get('sy', 1.0)
+            
+            # Update sliders tanpa trigger callback (karena ini sync, bukan perubahan user)
+            self.control_panel.translate_x_slider.set_value(saved.get('tx', 0), trigger_callback=False)
+            self.control_panel.translate_y_slider.set_value(saved.get('ty', 0), trigger_callback=False)
+            self.control_panel.rotate_slider.set_value(saved.get('rot', 0), trigger_callback=False)
+            self.control_panel.scale_x_slider.set_value(saved.get('sx', 1.0), trigger_callback=False)
+            self.control_panel.scale_y_slider.set_value(saved.get('sy', 1.0), trigger_callback=False)
+            
+            # Update transform object juga
+            self.control_panel.transform.translation_x = saved.get('tx', 0)
+            self.control_panel.transform.translation_y = saved.get('ty', 0)
+            self.control_panel.transform.rotation_angle = saved.get('rot', 0)
+            self.control_panel.transform.scale_x = saved.get('sx', 1.0)
+            self.control_panel.transform.scale_y = saved.get('sy', 1.0)
+            
+            # Update label
+            matrix_str = f"TX: {saved.get('tx', 0):.1f}, " \
+                        f"TY: {saved.get('ty', 0):.1f}, " \
+                        f"R: {saved.get('rot', 0):.1f}°, " \
+                        f"SX: {saved.get('sx', 1.0):.2f}, " \
+                        f"SY: {saved.get('sy', 1.0):.2f}"
+            self.control_panel.matrix_label.set_text(matrix_str)
+        else:
+            # Jika belum ada transformasi, reset ke default
+            self.control_panel.reset_transform()
+    
+    def _save_shape_transform(self):
+        """Simpan transformasi shape saat ini"""
+        if not self.selected_shape:
+            return
+        
+        # Simpan nilai transformasi ke shape
+        if not hasattr(self.selected_shape, 'saved_transform'):
+            self.selected_shape.saved_transform = {}
+        
+        self.selected_shape.saved_transform = {
+            'tx': self.control_panel.transform.translation_x,
+            'ty': self.control_panel.transform.translation_y,
+            'rot': self.control_panel.transform.rotation_angle,
+            'sx': self.control_panel.transform.scale_x,
+            'sy': self.control_panel.transform.scale_y,
+        }
+    
     def update(self):
         """Update game state (called every frame)"""
         # Update transformation matrix untuk selected shape
         if self.selected_shape:
-            matrix = self.control_panel.get_transform_matrix()
+            # Simpan transformasi sebelum update
+            self._save_shape_transform()
+            
+            # Gunakan center point objek asli sebagai pivot untuk scale dan rotate
+            center = self.selected_shape.get_center()
+            matrix = self.control_panel.get_transform_matrix(center[0], center[1])
             self.selected_shape.apply_transform(matrix)
     
     def draw(self):
